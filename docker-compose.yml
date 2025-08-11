@@ -1,0 +1,36 @@
+services:
+  notebook:
+    build: .
+    container_name: lab2-notebook
+    ports:
+      - "8888:8888"          # JupyterLab
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000   # opcional; en código también puedes setearlo
+      - PYTHONPATH=/workspace
+    volumes:
+      - ./notebooks:/workspace/notebooks
+      - ./data:/workspace/data
+      - ./mlruns:/workspace/mlruns
+      - ./mlflow:/workspace/mlflow
+    command: >
+      bash -lc "jupyter lab --ip=0.0.0.0 --no-browser
+      --ServerApp.token='' --ServerApp.password='' --allow-root"
+
+  mlflow:
+    build: .
+    container_name: lab2-mlflow
+    ports:
+      - "5001:5000"          # MLflow Server (UI incluida) → http://localhost:5001
+    volumes:
+      - ./mlruns:/workspace/mlruns
+      - ./mlflow:/workspace/mlflow
+    command: >
+      bash -lc "mlflow server
+      --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////workspace/mlflow/mlflow.db
+      --default-artifact-root /workspace/mlruns"
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "-", "http://127.0.0.1:5000/api/2.0/mlflow/experiments/list"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
